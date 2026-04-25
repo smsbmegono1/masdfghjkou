@@ -427,7 +427,7 @@ task.spawn(
         end
     end
 )
--สเตมินา-
+
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Net = require(ReplicatedStorage.Modules.Core.Net)
 local SprintModule = require(ReplicatedStorage.Modules.Game.Sprint)
@@ -663,7 +663,7 @@ local EnabledInfiniteStamina = false
 ------------------------------------------------
 MainTab:Toggle({
     Title = "Infinite Stamina",
-    Desc = "Run forever (no stamina drain)",
+    Desc = "",
     Icon = "zap",
     Type = "Checkbox",
     Value = false,
@@ -671,35 +671,6 @@ MainTab:Toggle({
         getgenv().InfiniteStamina = state
     end
 })
--- สร้าง toggle บนเมนู
-MainTab:Toggle(
-    {
-        Title = "Infinite Stamina",
-        Flag = "Inf",
-        Icon = "check",
-        Type = "Checkbox",
-        Value = false,
-        Callback = function(Value)
-            EnabledInfiniteStamina = Value
-        end
-    }
-)
-
--- เก็บฟังก์ชันเดิมของ SprintBar.update ไว้
-local OldUpdate = SprintBar.update
-
--- เขียนฟังก์ชันใหม่แทนที่
-SprintBar.update = function(...)
-    if EnabledInfiniteStamina then
-        -- ถ้าเปิดโหมด Infinite Stamina ให้คืนค่าเต็ม (1)
-        return 0.9
-    else
-        -- ถ้าปิด ให้ทำงานตามปกติ
-        return OldUpdate(...)
-    end
-end
-
-
 --====================================================
 -- 🕶️ Utility
 --====================================================
