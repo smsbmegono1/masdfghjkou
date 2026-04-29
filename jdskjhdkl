@@ -1,0 +1,133 @@
+-- ============================================
+-- FARM SCRIPT FOR MOBILE (ALL-IN-ONE)
+-- ใช้ได้ทันที ไม่ต้องแยกไฟล์ HTML
+-- ============================================
+
+local PICKUP_POINT = vector3(-1034.51501, 254.851868, -1132.3855)
+local SWEEP_POINT = vector3(-1043.81946, 254.851868, -1135.45325)
+
+local active = false
+local currentTarget = PICKUP_POINT
+
+-- ============================================
+-- สร้าง UI ปุ่มบนจอมือถือ (NUI ในตัว)
+-- ============================================
+local function createUI()
+    SendNUIMessage({
+        type = "showUI",
+        html = [[
+            <div id="farmUI" style="position:fixed; bottom:20px; right:20px; z-index:9999; font-family:Arial; text-align:center;">
+                <div id="status" style="background:rgba(0,0,0,0.7); padding:8px 15px; border-radius:20px; margin-bottom:10px; color:white; font-size:14px; backdrop-filter:blur(5px);">
+                    ⚡ ระบบฟาร์ม: ปิด
+                </div>
+                <button id="farmBtn" style="background:#ff8800; border:none; color:black; font-size:20px; font-weight:bold; padding:12px 25px; border-radius:50px; width:160px; cursor:pointer; box-shadow:0 0 10px rgba(0,0,0,0.5);">
+                    ▶ เริ่มฟาร์ม
+                </button>
+            </div>
+            <script>
+                var isActive = false;
+                var btn = document.getElementById('farmBtn');
+                var statusDiv = document.getElementById('status');
+                
+                btn.onclick = function() {
+                    isActive = !isActive;
+                    if(isActive) {
+                        btn.innerHTML = '⏹ หยุดฟาร์ม';
+                        btn.style.background = '#cc0000';
+                        btn.style.color = 'white';
+                        statusDiv.innerHTML = '🌾 ระบบฟาร์ม: กำลังทำงาน...';
+                        statusDiv.style.color = '#8eff8e';
+                        fetch('https://' + GetParentResourceName() + '/startFarm', {method:'POST'});
+                    } else {
+                        btn.innerHTML = '▶ เริ่มฟาร์ม';
+                        btn.style.background = '#ff8800';
+                        btn.style.color = 'black';
+                        statusDiv.innerHTML = '⚡ ระบบฟาร์ม: ปิด';
+                        statusDiv.style.color = 'white';
+                        fetch('https://' + GetParentResourceName() + '/stopFarm', {method:'POST'});
+                    }
+                };
+            </script>
+        ]]
+    })
+end
+
+-- ============================================
+-- รับคำสั่งจากปุ่ม
+-- ============================================
+RegisterNUICallback('startFarm', function(_, cb)
+    active = true
+    currentTarget = PICKUP_POINT
+    print("✅ เริ่มฟาร์ม")
+    TriggerEvent('chat:addMessage', { args = {"🌾", "เริ่มฟาร์มแล้ว!"} })
+    cb('ok')
+end)
+
+RegisterNUICallback('stopFarm', function(_, cb)
+    active = false
+    local ped = PlayerPedId()
+    ClearPedTasks(ped)
+    SetEntityCollision(ped, true, true)
+    print("⏹ หยุดฟาร์ม")
+    TriggerEvent('chat:addMessage', { args = {"⏹", "หยุดฟาร์ม"} })
+    cb('ok')
+end)
+
+-- ============================================
+-- ระบบฟาร์มหลัก (บิน + เร็ว + เดินทะลุ + ไปกลับอัตโนมัติ)
+-- ============================================
+Citizen.CreateThread(function()
+    while true do
+        Citizen.Wait(50)
+        
+        if active then
+            local ped = PlayerPedId()
+            
+            -- บิน + ทะลุกำแพง + ไม่ล้ม
+            SetEntityCollision(ped, false, false)
+            SetEntityInvincible(ped, true)
+            SetPedCanRagdoll(ped, false)
+            
+            -- ความเร็ว x2
+            SetRunSprintMultiplierForPlayer(PlayerId(), 2.0)
+            SetPedMoveRateOverride(ped, 2.0)
+            
+            local pos = GetEntityCoords(ped)
+            local dist = #(pos - currentTarget)
+            
+            if dist > 1.5 then
+                TaskGoToCoordAnyMeans(ped, currentTarget.x, currentTarget.y, currentTarget.z, 2.0, 0, 0, 786603, 0xbf800000)
+            else
+                -- ถึงแล้วสลับจุด
+                if currentTarget == PICKUP_POINT then
+                    currentTarget = SWEEP_POINT
+                    TriggerEvent('chat:addMessage', { args = {"📦", "ถึงจุดรับงาน กำลังไปกวาด..."} })
+                else
+                    currentTarget = PICKUP_POINT
+                    TriggerEvent('chat:addMessage', { args = {"🧹", "ถึงจุดกวาด กำลังกลับไปรับงาน..."} })
+                end
+                Citizen.Wait(800)
+            end
+        else
+            Citizen.Wait(500)
+        end
+    end
+end)
+
+-- ============================================
+-- เปิด UI และแจ้งเตือน
+-- ============================================
+Citizen.CreateThread(function()
+    Citizen.Wait(2000)
+    createUI()
+    SetNuiFocus(false, false)
+    
+    print("========================================")
+    print("🌾 FARM SCRIPT FOR MOBILE - พร้อมใช้งาน")
+    print("📍 จุดรับงาน: " .. PICKUP_POINT.x .. ", " .. PICKUP_POINT.y)
+    print("📍 จุดกวาด: " .. SWEEP_POINT.x .. ", " .. SWEEP_POINT.y)
+    print("✅ ปุ่มสีส้มจะปรากฏที่มุมขวาล่าง")
+    print("========================================")
+    
+    TriggerEvent('chat:addMessage', { args = {"🎮", "สคริปฟาร์มโหลดแล้ว! ดูปุ่มที่มุมขวาล่างของจอ"} })
+end)
